@@ -1,4 +1,4 @@
-# flutter_fire_pit
+# flutter_fire_pit (in progress...)
 
 A flutter fire pit inspired by Chris Gannon [SVG Fire Loader](https://www.uplabs.com/posts/svg-fire-loader)
 

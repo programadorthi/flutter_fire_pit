@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 void main() => runApp(new MyApp());
@@ -22,34 +23,78 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
-  AnimationController _animationController;
+  AnimationController _growUpFlameController;
+  AnimationController _leftDismissFlameController;
+  AnimationController _rightDismissFlameController;
+  AnimationController _leftBackFlameController;
+  AnimationController _rightBackFlameController;
+
   Animation<Color> _colorTween;
 
   @override
   void initState() {
     super.initState();
 
-    _animationController = new AnimationController(
+    _leftDismissFlameController = new AnimationController(
       duration: new Duration(milliseconds: 500),
       vsync: this,
-    )
-      ..addStatusListener((status) {
+    );
+
+    _rightDismissFlameController = new AnimationController(
+      duration: new Duration(milliseconds: 500),
+      vsync: this,
+    );
+
+    _leftBackFlameController = new AnimationController(
+      duration: new Duration(milliseconds: 500),
+      vsync: this,
+    )..addStatusListener((status) {
         if (status == AnimationStatus.completed) {
-          _animationController.forward(from: 0.0);
+          _leftBackFlameController.reverse();
+        } else if (status == AnimationStatus.dismissed) {
+          _leftDismissFlameController.forward(from: 0.0);
         }
       });
 
+    _rightBackFlameController = new AnimationController(
+      duration: new Duration(milliseconds: 500),
+      vsync: this,
+    )..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          _rightBackFlameController.reverse();
+        } else if (status == AnimationStatus.dismissed) {
+          _rightDismissFlameController.forward(from: 0.0);
+        }
+      });
+
+    _growUpFlameController = new AnimationController(
+      duration: new Duration(milliseconds: 500),
+      vsync: this,
+    )..addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _rightBackFlameController.forward();
+        _growUpFlameController.reverse();
+      } else if (status == AnimationStatus.dismissed) {
+        _leftBackFlameController.forward();
+        _growUpFlameController.forward();
+      }
+    });
+
     _colorTween = ColorTween(
       begin: new Color(0xFFFDBB01),
-      end: new Color(0xFFF36B01),
-    ).animate(_animationController);
+      end: new Color(0xFFF78801),
+    ).animate(_growUpFlameController);
 
-    _animationController.forward();
+    _growUpFlameController.forward();
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
+    _growUpFlameController.dispose();
+    _leftDismissFlameController.dispose();
+    _rightDismissFlameController.dispose();
+    _leftBackFlameController.dispose();
+    _rightBackFlameController.dispose();
     super.dispose();
   }
 
@@ -68,9 +113,36 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
               new Expanded(
                 child: new Container(),
               ),
-              new FlameWidget(
-                this._animationController,
-                this._colorTween,
+              new Stack(
+                alignment: Alignment.bottomCenter,
+                children: <Widget>[
+                  new DismissFlameWidget(
+                    animation: _leftDismissFlameController,
+                    isLeft: true,
+                  ),
+                  new DismissFlameWidget(
+                    animation: _rightDismissFlameController,
+                    isLeft: false,
+                  ),
+                  new BackFlameWidget(
+                    animation: _leftBackFlameController,
+                    isLeft: true,
+                  ),
+                  new BackFlameWidget(
+                    animation: _rightBackFlameController,
+                    isLeft: false,
+                  ),
+                  new GrowUpFlameWidget(
+                    animation: _growUpFlameController,
+                    colorAnimation: _colorTween,
+                    isLeft: true,
+                  ),
+                  new GrowUpFlameWidget(
+                    animation: _growUpFlameController,
+                    colorAnimation: _colorTween,
+                    isLeft: false,
+                  ),
+                ],
               ),
               new Stack(
                 children: <Widget>[
@@ -86,31 +158,128 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   }
 }
 
-class FlameWidget extends StatelessWidget {
-  final AnimationController _animationController;
-  final Animation<Color> _colorTween;
+class GrowUpFlameWidget extends StatelessWidget {
+  final bool isLeft;
+  final Animation<double> animation;
+  final Animation<Color> colorAnimation;
 
-  FlameWidget(this._animationController, this._colorTween);
+  GrowUpFlameWidget({this.isLeft, this.animation, this.colorAnimation});
 
   @override
   Widget build(BuildContext context) {
     return new AnimatedBuilder(
-      animation: _colorTween,
-      builder: (BuildContext context, Widget child) {
-        return new Transform(
-          alignment: FractionalOffset.center,
-          transform: new Matrix4.rotationZ(math.pi / 4.0),
-          child: new Container(
-            height: 100.0 * this._animationController.value,
-            width: 100.0 * this._animationController.value,
-            decoration: new BoxDecoration(
-              borderRadius: new BorderRadius.circular(10.0),
-              color: this._colorTween.value,
-              shape: BoxShape.rectangle,
-            ),
-          ),
+      animation: animation,
+      builder: (BuildContext context, Widget widget) {
+        if (this.isLeft && this.animation.status == AnimationStatus.reverse) {
+          return new FlameWidget(
+            color: this.colorAnimation.value,
+            rotateZ: math.pi / 4.0,
+            size: 100.0 * (1.0 - this.animation.value),
+            translateX: -25.0 * (1.0 - this.animation.value),
+            translateY: 0.0,
+          );
+        }
+        if (!this.isLeft && this.animation.status == AnimationStatus.forward) {
+          return new FlameWidget(
+            color: this.colorAnimation.value,
+            rotateZ: math.pi / 4.0,
+            size: 100.0 * this.animation.value,
+            translateX: 25.0 * this.animation.value,
+            translateY: 0.0,
+          );
+        }
+        return new Container();
+      },
+    );
+  }
+}
+
+class BackFlameWidget extends StatelessWidget {
+  final double rotateZ;
+  final double translateX;
+  final Animation<double> animation;
+
+  BackFlameWidget({bool isLeft = false, this.animation})
+      : rotateZ = isLeft ? -math.pi : math.pi,
+        translateX = isLeft ? -25.0 : 25.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return new AnimatedBuilder(
+      animation: animation,
+      builder: (BuildContext context, Widget widget) {
+        return new FlameWidget(
+          color: new Color(0xFFF36B01),
+          rotateZ: this.rotateZ / (4.0 - animation.value),
+          size: 100.0,
+          translateX: this.translateX,
+          translateY: 0.0,
         );
       },
+    );
+  }
+}
+
+class DismissFlameWidget extends StatelessWidget {
+  final double translateX;
+  final Animation<double> animation;
+
+  DismissFlameWidget({bool isLeft = false, this.animation})
+      : translateX = isLeft ? -25.0 : 25.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return new AnimatedBuilder(
+      animation: animation,
+      builder: (BuildContext context, Widget widget) {
+        if (animation.isCompleted) {
+          return new Container();
+        }
+        return new FlameWidget(
+          color: new Color(0xFFF36B01),
+          rotateZ: math.pi / 4.0,
+          size: 100.0 * (1.0 - animation.value),
+          translateX: this.translateX * (1.0 - animation.value),
+          translateY: -270.0 * animation.value,
+        );
+      },
+    );
+  }
+}
+
+class FlameWidget extends StatelessWidget {
+  final Color color;
+  final double rotateZ;
+  final double size;
+  final double translateX;
+  final double translateY;
+
+  FlameWidget({
+    this.color,
+    this.rotateZ,
+    this.size,
+    this.translateX,
+    this.translateY,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return new Transform(
+      alignment: FractionalOffset.center,
+      transform: new Matrix4.translationValues(
+        this.translateX,
+        this.translateY,
+        0.0,
+      )..rotateZ(this.rotateZ),
+      child: new Container(
+        height: this.size,
+        width: this.size,
+        decoration: new BoxDecoration(
+          borderRadius: new BorderRadius.circular(10.0),
+          color: this.color,
+          shape: BoxShape.rectangle,
+        ),
+      ),
     );
   }
 }
@@ -147,4 +316,3 @@ class WoodWidget extends StatelessWidget {
     );
   }
 }
-
