@@ -23,30 +23,33 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
+  static const int milliseconds = 300;
+
   AnimationController _growUpFlameController;
   AnimationController _leftDismissFlameController;
   AnimationController _rightDismissFlameController;
   AnimationController _leftBackFlameController;
   AnimationController _rightBackFlameController;
 
-  Animation<Color> _colorTween;
+  Animation<Color> _growUpColorTween;
+  Animation<Color> _backColorTween;
 
   @override
   void initState() {
     super.initState();
 
     _leftDismissFlameController = new AnimationController(
-      duration: new Duration(milliseconds: 500),
+      duration: new Duration(milliseconds: milliseconds),
       vsync: this,
     );
 
     _rightDismissFlameController = new AnimationController(
-      duration: new Duration(milliseconds: 500),
+      duration: new Duration(milliseconds: milliseconds),
       vsync: this,
     );
 
     _leftBackFlameController = new AnimationController(
-      duration: new Duration(milliseconds: 500),
+      duration: new Duration(milliseconds: milliseconds),
       vsync: this,
     )..addStatusListener((status) {
         if (status == AnimationStatus.completed) {
@@ -57,7 +60,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       });
 
     _rightBackFlameController = new AnimationController(
-      duration: new Duration(milliseconds: 500),
+      duration: new Duration(milliseconds: milliseconds),
       vsync: this,
     )..addStatusListener((status) {
         if (status == AnimationStatus.completed) {
@@ -68,7 +71,7 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       });
 
     _growUpFlameController = new AnimationController(
-      duration: new Duration(milliseconds: 500),
+      duration: new Duration(milliseconds: milliseconds),
       vsync: this,
     )..addStatusListener((status) {
       if (status == AnimationStatus.completed) {
@@ -80,9 +83,14 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       }
     });
 
-    _colorTween = ColorTween(
+    _growUpColorTween = ColorTween(
       begin: new Color(0xFFFDBB01),
       end: new Color(0xFFF78801),
+    ).animate(_growUpFlameController);
+
+    _backColorTween = ColorTween(
+      begin: new Color(0xFFF68101),
+      end: new Color(0xFFF36B01),
     ).animate(_growUpFlameController);
 
     _growUpFlameController.forward();
@@ -126,20 +134,22 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                   ),
                   new BackFlameWidget(
                     animation: _leftBackFlameController,
+                    colorAnimation: _backColorTween,
                     isLeft: true,
                   ),
                   new BackFlameWidget(
                     animation: _rightBackFlameController,
+                    colorAnimation: _backColorTween,
                     isLeft: false,
                   ),
                   new GrowUpFlameWidget(
                     animation: _growUpFlameController,
-                    colorAnimation: _colorTween,
+                    colorAnimation: _growUpColorTween,
                     isLeft: true,
                   ),
                   new GrowUpFlameWidget(
                     animation: _growUpFlameController,
-                    colorAnimation: _colorTween,
+                    colorAnimation: _growUpColorTween,
                     isLeft: false,
                   ),
                 ],
@@ -198,8 +208,9 @@ class BackFlameWidget extends StatelessWidget {
   final double rotateZ;
   final double translateX;
   final Animation<double> animation;
+  final Animation<Color> colorAnimation;
 
-  BackFlameWidget({bool isLeft = false, this.animation})
+  BackFlameWidget({bool isLeft = false, this.animation, this.colorAnimation})
       : rotateZ = isLeft ? -math.pi : math.pi,
         translateX = isLeft ? -25.0 : 25.0;
 
@@ -209,7 +220,7 @@ class BackFlameWidget extends StatelessWidget {
       animation: animation,
       builder: (BuildContext context, Widget widget) {
         return new FlameWidget(
-          color: new Color(0xFFF36B01),
+          color: this.colorAnimation.value,
           rotateZ: this.rotateZ / (4.0 - animation.value),
           size: 100.0,
           translateX: this.translateX,
@@ -235,12 +246,15 @@ class DismissFlameWidget extends StatelessWidget {
         if (animation.isCompleted) {
           return new Container();
         }
-        return new FlameWidget(
-          color: new Color(0xFFF36B01),
-          rotateZ: math.pi / 4.0,
-          size: 100.0 * (1.0 - animation.value),
-          translateX: this.translateX * (1.0 - animation.value),
-          translateY: -270.0 * animation.value,
+        return new Opacity(
+          opacity: 1.0 - animation.value,
+          child: new FlameWidget(
+            color: new Color(0xFFF36B01),
+            rotateZ: math.pi / 4.0,
+            size: 100.0 - (70.0 * animation.value),
+            translateX: this.translateX * (1.0 - animation.value),
+            translateY: -270.0 * animation.value,
+          ),
         );
       },
     );
@@ -275,7 +289,7 @@ class FlameWidget extends StatelessWidget {
         height: this.size,
         width: this.size,
         decoration: new BoxDecoration(
-          borderRadius: new BorderRadius.circular(10.0),
+          borderRadius: new BorderRadius.circular(7.0),
           color: this.color,
           shape: BoxShape.rectangle,
         ),
