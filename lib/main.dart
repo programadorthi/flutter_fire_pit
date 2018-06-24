@@ -23,16 +23,18 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
-  static const int milliseconds = 300;
+  static const int milliseconds = 400;
 
   AnimationController _growUpFlameController;
   AnimationController _leftDismissFlameController;
-  AnimationController _rightDismissFlameController;
   AnimationController _leftBackFlameController;
+  AnimationController _rightDismissFlameController;
   AnimationController _rightBackFlameController;
 
-  Animation<Color> _growUpColorTween;
+  Animation<double> _leftDismissCurveAnimation;
+  Animation<double> _rightDismissCurveAnimation;
   Animation<Color> _backColorTween;
+  Animation<Color> _growUpColorTween;
 
   @override
   void initState() {
@@ -43,10 +45,16 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       vsync: this,
     );
 
+    _leftDismissCurveAnimation = new CurvedAnimation(
+        parent: _leftDismissFlameController, curve: Curves.easeIn);
+
     _rightDismissFlameController = new AnimationController(
       duration: new Duration(milliseconds: milliseconds),
       vsync: this,
     );
+
+    _rightDismissCurveAnimation = new CurvedAnimation(
+        parent: _rightDismissFlameController, curve: Curves.easeIn);
 
     _leftBackFlameController = new AnimationController(
       duration: new Duration(milliseconds: milliseconds),
@@ -74,14 +82,14 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       duration: new Duration(milliseconds: milliseconds),
       vsync: this,
     )..addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        _rightBackFlameController.forward();
-        _growUpFlameController.reverse();
-      } else if (status == AnimationStatus.dismissed) {
-        _leftBackFlameController.forward();
-        _growUpFlameController.forward();
-      }
-    });
+        if (status == AnimationStatus.completed) {
+          _rightBackFlameController.forward();
+          _growUpFlameController.reverse();
+        } else if (status == AnimationStatus.dismissed) {
+          _leftBackFlameController.forward();
+          _growUpFlameController.forward();
+        }
+      });
 
     _growUpColorTween = ColorTween(
       begin: new Color(0xFFFDBB01),
@@ -112,55 +120,58 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       appBar: new AppBar(
         title: new Text('Fire pit'),
       ),
-      body: new Center(
-        child: new SizedBox(
-          height: 300.0,
-          width: 200.0,
-          child: new Column(
-            children: <Widget>[
-              new Expanded(
-                child: new Container(),
-              ),
-              new Stack(
-                alignment: Alignment.bottomCenter,
-                children: <Widget>[
-                  new DismissFlameWidget(
-                    animation: _leftDismissFlameController,
-                    isLeft: true,
-                  ),
-                  new DismissFlameWidget(
-                    animation: _rightDismissFlameController,
-                    isLeft: false,
-                  ),
-                  new BackFlameWidget(
-                    animation: _leftBackFlameController,
-                    colorAnimation: _backColorTween,
-                    isLeft: true,
-                  ),
-                  new BackFlameWidget(
-                    animation: _rightBackFlameController,
-                    colorAnimation: _backColorTween,
-                    isLeft: false,
-                  ),
-                  new GrowUpFlameWidget(
-                    animation: _growUpFlameController,
-                    colorAnimation: _growUpColorTween,
-                    isLeft: true,
-                  ),
-                  new GrowUpFlameWidget(
-                    animation: _growUpFlameController,
-                    colorAnimation: _growUpColorTween,
-                    isLeft: false,
-                  ),
-                ],
-              ),
-              new Stack(
-                children: <Widget>[
-                  new WoodWidget(rotate: true),
-                  new WoodWidget(),
-                ],
-              ),
-            ],
+      body: new Container(
+        color: Colors.black,
+        child: new Center(
+          child: new SizedBox(
+            height: 300.0,
+            width: 200.0,
+            child: new Column(
+              children: <Widget>[
+                new Expanded(
+                  child: new Container(),
+                ),
+                new Stack(
+                  alignment: Alignment.bottomCenter,
+                  children: <Widget>[
+                    new DismissFlameWidget(
+                      dismissCurveAnimation: _leftDismissCurveAnimation,
+                      isLeft: true,
+                    ),
+                    new DismissFlameWidget(
+                      dismissCurveAnimation: _rightDismissCurveAnimation,
+                      isLeft: false,
+                    ),
+                    new BackFlameWidget(
+                      animation: _leftBackFlameController,
+                      colorAnimation: _backColorTween,
+                      isLeft: true,
+                    ),
+                    new BackFlameWidget(
+                      animation: _rightBackFlameController,
+                      colorAnimation: _backColorTween,
+                      isLeft: false,
+                    ),
+                    new GrowUpFlameWidget(
+                      animation: _growUpFlameController,
+                      colorAnimation: _growUpColorTween,
+                      isLeft: true,
+                    ),
+                    new GrowUpFlameWidget(
+                      animation: _growUpFlameController,
+                      colorAnimation: _growUpColorTween,
+                      isLeft: false,
+                    ),
+                  ],
+                ),
+                new Stack(
+                  children: <Widget>[
+                    new WoodWidget(rotate: true),
+                    new WoodWidget(),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -232,28 +243,34 @@ class BackFlameWidget extends StatelessWidget {
 }
 
 class DismissFlameWidget extends StatelessWidget {
-  final double translateX;
-  final Animation<double> animation;
+  static final Tween<double> _percentageTween =
+      new Tween<double>(begin: 0.0, end: 1.0);
 
-  DismissFlameWidget({bool isLeft = false, this.animation})
+  final double translateX;
+  final Animation<double> dismissCurveAnimation;
+
+  DismissFlameWidget({bool isLeft = false, this.dismissCurveAnimation})
       : translateX = isLeft ? -25.0 : 25.0;
 
   @override
   Widget build(BuildContext context) {
     return new AnimatedBuilder(
-      animation: animation,
+      animation: dismissCurveAnimation,
       builder: (BuildContext context, Widget widget) {
-        if (animation.isCompleted) {
+        if (dismissCurveAnimation.isCompleted) {
           return new Container();
         }
         return new Opacity(
-          opacity: 1.0 - animation.value,
+          opacity: 1.0 - _percentageTween.evaluate(dismissCurveAnimation),
           child: new FlameWidget(
             color: new Color(0xFFF36B01),
             rotateZ: math.pi / 4.0,
-            size: 100.0 - (70.0 * animation.value),
-            translateX: this.translateX * (1.0 - animation.value),
-            translateY: -270.0 * animation.value,
+            size: 100.0 -
+                (70.0 * _percentageTween.evaluate(dismissCurveAnimation)),
+            translateX: this.translateX *
+                (1.0 - _percentageTween.evaluate(dismissCurveAnimation)),
+            translateY:
+                -270.0 * _percentageTween.evaluate(dismissCurveAnimation),
           ),
         );
       },
